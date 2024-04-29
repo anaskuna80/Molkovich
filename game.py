@@ -45,6 +45,14 @@ player_image.anchor_y = player_image.height // 2
 player = pyglet.sprite.Sprite(player_image, x=window_width // 2, y=window_height // 2, batch=batch)
 player.scale = 0.2
 
+# Create the enemy sprite
+enemy_image = pyglet.image.load('resources/image/enemy.png')
+#enemy_image.anchor_x = enemy_image.width // 2
+#enemy_image.anchor_y = enemy_image.height // 2
+enemy = pyglet.sprite.Sprite(enemy_image, x=800, y=window_height // 2, batch=batch)
+enemy_speed = -5
+enemy.scale = 0.2
+
 def collides_with(sprite, point):
     dx = sprite.x - point.x
     dy = sprite.y - point.y
@@ -84,6 +92,11 @@ def update(dt):
         if star.x < 0:
             star.x = window_width
             star.y = random.randint(0, window_height)
+    
+     # Update enemy position
+    enemy.x += enemy_speed
+    if enemy.x < 0:
+        enemy.x = window_width
             
     # Check for collisions with point objects
     for point in points:

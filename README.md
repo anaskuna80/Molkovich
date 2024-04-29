@@ -1,4 +1,4 @@
-What is Molkovich?
+### What is Molkovich?
 
 This project is a game in space shooter style created with Python and the library Pyglet.
 The game is meant to be like the popular franchise "Gradius" but with much less features.

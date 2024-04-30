@@ -3,6 +3,9 @@ from pyglet.window import key
 from pyglet import shapes
 import random
 
+# Add the background music
+bg_music = pyglet.media.load('resources/sound/game_music.mp3')
+
 # Load the bullet sound and to initialize the score and the label
 bullet_sound = pyglet.media.load('resources/sound/pang.mp3', streaming=False)
 big_bullet_sound = pyglet.media.load('resources/sound/big_pang.mp3', streaming=False)
@@ -156,6 +159,11 @@ def on_key_release(symbol, modifiers):
 
 # Schedule the update function
 pyglet.clock.schedule_interval(update, 1/60.0)
+
+try:
+    bg_music.play()
+except Exception as e:
+    print(f"Error playing music: {e}")
 
 # Run the game
 pyglet.app.run()

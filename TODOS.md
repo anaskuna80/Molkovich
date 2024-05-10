@@ -32,6 +32,8 @@ This document outlines the current state of the Molkovich game development, high
 
 ## Suggestions
 
+Here is some other things that I would like to maybe add to the game.
+
 - **Power-Ups:** Introduce power-ups that enhance the player's abilities or grant temporary advantages such as increased firepower, shield protection, or temporary invincibility.
 - **Dynamic Level Design:** Create diverse and challenging levels with unique obstacles, enemy formations, and environmental hazards that require strategic maneuvering and timing.
 - **Boss Battles:** Design epic boss encounters inspired by iconic bosses from Sinistar and R-Type, each with distinct attack patterns, phases, and weaknesses for the player to exploit.

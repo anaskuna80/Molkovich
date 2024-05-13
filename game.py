@@ -11,7 +11,8 @@ class SoundManager:
         self.bullet_sound = pyglet.media.load('resources/sound/pang.mp3', streaming=False)
         self.big_bullet_sound = pyglet.media.load('resources/sound/big_pang.mp3', streaming=False)
         self.background_music = pyglet.media.load('resources/sound/game_music.mp3')
-
+        #self.boss_music = pyglet.media.load('resources/sound/boss_music.mp3') #NYI
+     
     def play_bullet_sound(self):
         self.bullet_sound.play()
 
@@ -20,36 +21,34 @@ class SoundManager:
         
     def play_background_music(self):
         bg_music_player = self.background_music.play()
-        bg_music_player.volume = 0.0
-        fade_duration=5.0
-        volume = 1.0
-        volume_change = volume / (fade_duration * 60)
-
-        # def change_volume(dt):
-        #     nonlocal bg_music_player
-        #     if bg_music_player.volume < 1.0 and isinstance(current_state, IntroState):
-        #         bg_music_player.volume += volume_change
-
-        #     if bg_music_player.volume > 0.0 and isinstance(current_state, GameState):
-        #         play_background_music.fade_duration = 1.0
-        #         bg_music_player.volume -= volume_change
-
-        # pyglet.clock.schedule_interval(change_volume, 1/60.0)
+        bg_music_player.volume = 1.0
+        
+    def play_enemy_killed(self):
+        enemy_killed_sound = pyglet.media.load('resources/sound/die.mp3', streaming=False)
+        enemy_killed_sound.play()
+    
+    ## NYI (Need to find/create appropriate boss music)   
+    # def play_boss_music(self):
+    #     bg_music_player = self.boss_music.play()
+    #     bg_music_player.volume = 1.0
 
 class GameWindow(pyglet.window.Window):
     def __init__(self, width, height, *args, **kwargs):
         super().__init__(width, height, *args, **kwargs)
         self.batch = pyglet.graphics.Batch()
         self.sound_manager = SoundManager()
-        self.score_label = pyglet.text.Label('Score: 0', font_name='Courier New', font_size=16, x=self.width // 2, y=self.height - 780, color=(200, 255, 215, 200), bold=True, batch=self.batch)
+        self.points = [Point(random.randint(0, self.width), random.randint(0, self.height), self.batch) for _ in range(1)]
+        self.score_label = pyglet.text.Label('Score: 0', font_name='Courier New', font_size=16, x=self.width // 2, y=self.height - 780,
+                                             color=(200, 255, 215, 200), bold=True, batch=self.batch)   
         self.keys = set()
         self.score = 0
         self.player = Player(self.width // 2, self.height // 2, self.width // 2, self.height, self.batch)
-        self.enemy = Enemy(800, self.height // 2, self.width, self.batch)
-        self.dots = [Dot(random.randint(0, self.width), random.randint(0, self.height), self.batch) for _ in range(50)]
-        self.points = [Point(random.randint(0, self.width), random.randint(0, self.height), self.batch) for _ in range(1)]
+        self.enemy = Enemy(800, self.height // 2, self.width, self.height, self.batch)
         self.bullets = self.player.bullets
         self.big_bullets = self.player.big_bullets
+        self.dots = [Dot(random.randint(0, self.width), random.randint(0, self.height), self.batch) for _ in range(100)]
+        self.stars = [Star(random.randint(0, self.width), random.randint(0, self.height), self.batch) for _ in range(100)]
+        
 
     def on_draw(self):
         self.clear()
@@ -114,8 +113,31 @@ class GameWindow(pyglet.window.Window):
         for big_bullet in big_bullets_to_remove:
             self.big_bullets.remove(big_bullet)
             big_bullet.delete()
+            
+        for star in self.stars:
+            star.update()
         
+        # Bullet collision with enemy
+        for bullet in self.bullets:
+            if self.enemy.collides_with(bullet):
+                # Play sound for bullet hit
+                self.sound_manager.play_enemy_killed()
+                print("Bullet hit") # Alert that big bullet hit enemy
+                self.bullets.remove(bullet)  # Remove bullet from the list
+                bullet.delete()
+                self.enemy.respawn()  # Respawn enemy
+                # TODO: Increment score when enemy is killed
 
+        # Big bullet collision with enemy
+        for big_bullet in self.big_bullets:
+            if self.enemy.collides_with(big_bullet):
+                self.sound_manager.play_enemy_killed()
+                print("Big bullet hit") # Alert that big bullet hit enemy
+                self.big_bullets.remove(big_bullet) # Remove big bullet from the list
+                big_bullet.delete()          
+                self.enemy.respawn()  # Respawn enemy
+               # TODO: Increment score when enemy is killed
+               
 class Player(pyglet.sprite.Sprite):
     def __init__(self, x, y, window_width, window_height, batch):
         super().__init__(pyglet.image.load('resources/image/ship.png'), x=x, y=y, batch=batch)
@@ -189,12 +211,31 @@ class Player(pyglet.sprite.Sprite):
         return distance < 30  # Collision radius.
 
 class Enemy(pyglet.sprite.Sprite):
-    def __init__(self, x, y, window_width, batch):
+    def __init__(self, x, y, window_width, window_height, batch):
         super().__init__(pyglet.image.load('resources/image/enemy.png'), x=x, y=y, batch=batch)
-        self.scale = 0.2
+        self.scale = 0.05
         self.speed = -5
         self.window_width = window_width
+        self.window_height = window_height
+        self.respawn_timer = random.uniform(3, 10)
 
+    def collides_with(self, other):
+        dx = self.x - other.x
+        dy = self.y - other.y
+        distance = (dx * dx + dy * dy) ** 0.5
+        distance_change = distance < self.width / 2 # Collision radius.
+        if distance_change:  # Draw collision circle only if there's a collision
+            self.draw_collision_circle(distance)
+        return distance_change
+
+    def respawn(self):
+        self.x = self.window_width
+        self.y = random.randint(0, self.window_height - self.height)
+        self.respawn_timer = random.uniform(3, 10)
+
+    def draw_collision_circle(self, distance):
+        shapes.Circle(self.x + self.width / 2, self.height - self.y / 2, distance, color=(255, 0, 0), batch=self.batch)
+    
     def update(self):
         self.x += self.speed
         if self.x < 0:
@@ -226,7 +267,17 @@ class BigBullet(shapes.Rectangle):
 
 class Dot(shapes.Circle):
     def __init__(self, x, y, batch):
-        super().__init__(x, y, 2, color=(255, 255, 255), batch=batch)
+        super().__init__(x, y, 2, color=(128, 128, 128), batch=batch)
+
+    def update(self):
+        global window_width
+        self.x -= 2.5
+        if self.x < 0:
+            self.x = window_width
+            
+class Dot(shapes.Circle):
+    def __init__(self, x, y, batch):
+        super().__init__(x, y, 2, color=(128, 128, 128), batch=batch)
 
     def update(self):
         global window_width
@@ -234,11 +285,22 @@ class Dot(shapes.Circle):
         if self.x < 0:
             self.x = window_width
 
+class Star(shapes.Star):
+    def __init__(self, x, y, batch):
+        super().__init__(x, y, 3, 3, 2, color=(255, 100, 0), batch=batch)
+
+    def update(self):
+        global window_width
+        self.x -= 2.5
+        if self.x < 0:
+            self.x = window_width
+            
 class Point(shapes.Circle):
     def __init__(self, x, y, batch):
         super().__init__(x, y, 5, color=(0, 255, 0), batch=batch)
 
 if __name__ == "__main__":
     window = GameWindow(window_width, window_height, "Molkovich")
+    window.sound_manager.play_background_music()
     pyglet.clock.schedule_interval(window.update, 1/60.0)
     pyglet.app.run()

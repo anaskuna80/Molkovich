@@ -18,6 +18,8 @@ Read the TODOS.md for more info about the delelopment status.
 
 Hopefully will this game be finished in the future and I also want to mention that this game is a tribute to the school that learned me a lot of my programming skills:
 
-__Mölk Utbildning__
+___
 
-_Thanks you so much!_
+_Thanks you so much_, __Mölk Utbildning!__
+
+

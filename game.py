@@ -11,7 +11,9 @@ class SoundManager:
         self.bullet_sound = pyglet.media.load('resources/sound/pang.mp3', streaming=False)
         self.big_bullet_sound = pyglet.media.load('resources/sound/big_pang.mp3', streaming=False)
         self.background_music = pyglet.media.load('resources/sound/game_music.mp3')
-        #self.boss_music = pyglet.media.load('resources/sound/boss_music.mp3') #NYI
+        self.bg_music_player = None
+        # TODO: self.boss_music = pyglet.media.load('resources/sound/boss_music.mp3') #NYI
+        # TODO: self.pause_music = pyglet.media.load('resources/sound/pause_music.mp3') #NYI
      
     def play_bullet_sound(self):
         self.bullet_sound.play()
@@ -20,8 +22,17 @@ class SoundManager:
         self.big_bullet_sound.play()
         
     def play_background_music(self):
-        bg_music_player = self.background_music.play()
-        bg_music_player.volume = 1.0
+        if not self.bg_music_player:
+            self.bg_music_player = self.background_music.play()
+            self.bg_music_player.volume = 1.0
+    
+    def pause_background_music(self):
+        if self.bg_music_player:
+            self.bg_music_player.pause()
+        
+    def resume_background_music(self):
+        if self.bg_music_player:
+            self.bg_music_player.play()
         
     def play_enemy_killed(self):
         enemy_killed_sound = pyglet.media.load('resources/sound/die.mp3', streaming=False)
@@ -36,6 +47,7 @@ class GameWindow(pyglet.window.Window):
     def __init__(self, width, height, *args, **kwargs):
         super().__init__(width, height, *args, **kwargs)
         self.batch = pyglet.graphics.Batch()
+        self.pause_screen_batch = pyglet.graphics.Batch()  # Separate batch for pause screen elements
         self.sound_manager = SoundManager()
         self.points = [Point(random.randint(0, self.width), random.randint(0, self.height), self.batch) for _ in range(1)]
         self.score_label = pyglet.text.Label('Score: 0', font_name='Courier New', font_size=16, x=self.width // 2, y=self.height - 780,
@@ -49,11 +61,64 @@ class GameWindow(pyglet.window.Window):
         self.dots = [Dot(random.randint(0, self.width), random.randint(0, self.height), self.batch) for _ in range(100)]
         self.stars = [Star(random.randint(0, self.width), random.randint(0, self.height), self.batch) for _ in range(100)]
         
+        # Pause screen variables
+        self.paused = False
+        self.game_clock = None
+        
+        # Initialize blink timer for pause screen
+        self.blink_timer = 0
+        self.blink_interval = 0.5  # Blink interval in seconds
+        self.show_continue_label = True 
 
     def on_draw(self):
         self.clear()
-        self.batch.draw()
+        if not self.paused:
+            self.batch.draw()
+        else:
+            self.draw_pause_screen()
+            
+        # Toggle the visibility of continue label for blinking effect
+        if self.paused:
+            self.blink_timer += 1
+            if self.blink_timer >= self.blink_interval * 60:  # Convert blink interval to frames (assuming 60 FPS)
+                self.show_continue_label = not self.show_continue_label
+                self.blink_timer = 0        
+        
+    def draw_pause_screen(self):
+        self.paused = True
+        self.clear()
+        
+        pause_bg_rect_color = (0, 0, 0, 128)  # Black with increased transparency for darkness
+        pause_rect_border_color = (255, 255, 255, 255)  # White border for the pause screen rectangle
+        pause_rect_width = self.width // 2
+        pause_rect_height = self.height // 2
+        pause_rect_x = (self.width - pause_rect_width) // 2
+        pause_rect_y = (self.height - pause_rect_height) // 2
+        pause_rect_color = (0,0,250, 255)  # Dark blue
+        
+        pause_bg_rect = shapes.Rectangle(x=0, y=0, width=self.width, height=self.height, color=pause_bg_rect_color, batch=self.pause_screen_batch)
+        pause_rect_border = shapes.Rectangle(x=pause_rect_x - 4, y=pause_rect_y - 4, width=pause_rect_width + 7, height=pause_rect_height + 7,
+                                            color=pause_rect_border_color, batch=self.pause_screen_batch)
+        pause_rect = shapes.Rectangle(x=pause_rect_x, y=pause_rect_y, width=pause_rect_width, height=pause_rect_height, color=pause_rect_color, batch=self.pause_screen_batch)
+        pause_label = pyglet.text.Label('PAUSE', font_name='Arial', font_size=72,
+                                        x=self.width // 2, y=self.height // 2 + pause_rect_height // 4,
+                                        anchor_x='center', anchor_y='center',
+                                        color=(255, 255, 255, 255), batch=self.pause_screen_batch)
+        
+        # Draw continue label only when show_continue_label is True
+        if self.show_continue_label:
+            continue_label = pyglet.text.Label('Press P to continue...', font_name='Arial', font_size=18,
+                                                x=self.width // 2, y=self.height // 2 - pause_rect_height // 4,
+                                                anchor_x='center', anchor_y='center',
+                                                color=(255, 255, 255, 255), batch=self.pause_screen_batch)
+        else:
+            continue_label = None
 
+        self.pause_screen_batch.draw()  # Draw all pause screen elements
+
+
+
+                            
     def on_key_press(self, symbol, modifiers):
         if symbol == key.UP:
             self.keys.add('up')
@@ -69,6 +134,8 @@ class GameWindow(pyglet.window.Window):
             self.player.fire_big_bullet()
         elif symbol == key.ESCAPE:
             self.close()
+        elif symbol == key.P:  # Pause/unpause with 'P' key
+            self.paused = not self.paused
 
     def on_key_release(self, symbol, modifiers):
         if symbol == key.UP:
@@ -79,12 +146,35 @@ class GameWindow(pyglet.window.Window):
             self.keys.remove('left')
         elif symbol == key.RIGHT:
             self.keys.remove('right')
+            
+    def toggle_pause(self):
+        self.paused = not self.paused
+        if self.paused:
+            self.sound_manager.pause_background_music()
+            self.pause_game_clock()
+        else:
+            self.sound_manager.resume_background_music()
+            self.resume_game_clock()
+            
+    def pause_game_clock(self):
+        if self.game_clock:
+            self.game_clock.unschedule()
+
+    def resume_game_clock(self):
+        if self.game_clock:
+            self.game_clock.schedule_interval(self.update, 1/60.0)
+        else:
+            self.game_clock = pyglet.clock.schedule_interval(self.update, 1/60.0)
 
     def update(self, dt):
+        if not self.paused:
+            self.player.update(self.keys)
+            self.enemy.update()
         self.player.update(self.keys)
         self.enemy.update()
         for dot in self.dots:
             dot.update()
+            
         for point in self.points:
             if self.player.collides_with(point):
                 self.score += 1
